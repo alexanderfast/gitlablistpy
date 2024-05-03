@@ -1,34 +1,33 @@
 {
   description = "gitlablistpy";
 
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, poetry2nix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlay = final: prev: {
-          python39 = prev.python39.overrideAttrs (oldAttrs: {
-            version = "3.9.6";
-            src = final.fetchurl {
-              url =
-                "https://www.python.org/ftp/python/3.9.6/Python-3.9.6.tar.xz";
-              sha256 = "sha256-OXkgrzPvxbl/LgtX6RkjUS74n8WzwdIdv8jEgozgEIo=";
-            };
-          });
+        name = "gitlablistpy";
+        version = "0.1.0";
+        pkgs = nixpkgs.legacyPackages.${system};
+        inherit (poetry2nix.lib.mkPoetry2Nix { inherit pkgs; }) mkPoetryApplication;
+      in 
+      {
+        packages = {
+          myapp = mkPoetryApplication { projectDir = self; };
+          default = self.packages.${system}.myapp;
         };
 
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ overlay ];
-        };
-      in {
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [ python39 poetry nixfmt ];
-          shellHook = "";
+          packages = [ pkgs.poetry ];
         };
-      });
+      }
+    );
 }
 
